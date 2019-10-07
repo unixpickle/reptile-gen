@@ -22,7 +22,7 @@ def main():
         last_100 = last_100[-100:]
         print('step %d: loss=%f last_100=%f' % (i, np.mean(losses), np.mean(last_100)))
         if i % 100 == 0:
-            torch.save(OUT_PATH, model.state_dict())
+            torch.save(model.state_dict(), OUT_PATH)
 
 
 if __name__ == '__main__':
