@@ -15,7 +15,7 @@ OPTIM_PATH = 'optimizer.pt'
 def main():
     model = MNISTModel()
     model.load_state_dict(torch.load(IN_PATH))
-    opt = optim.Adam(model.parameters())
+    opt = optim.Adam(model.parameters(), betas=(0, 0.999))
     opt.load_state_dict(torch.load(OPTIM_PATH))
 
     output = np.zeros([28 * 28], dtype=np.uint8)

@@ -17,7 +17,7 @@ def main():
     if os.path.exists(OUT_PATH):
         model.load_state_dict(torch.load(OUT_PATH))
     last_100 = []
-    opt = optim.Adam(model.parameters())
+    opt = optim.Adam(model.parameters(), betas=(0, 0.999))
     if os.path.exists(OPTIM_PATH):
         opt.load_state_dict(torch.load(OPTIM_PATH))
     for i, (inputs, outputs) in enumerate(iterate_mini_datasets()):
