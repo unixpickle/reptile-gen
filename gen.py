@@ -9,13 +9,15 @@ import torch.nn.functional as F
 from reptile_gen.model import MNISTModel
 
 IN_PATH = 'model.pt'
+OPTIM_PATH = 'optimizer.pt'
 
 
 def main():
     model = MNISTModel()
     model.load_state_dict(torch.load(IN_PATH))
+    opt = optim.Adam(model.parameters())
+    opt.load_state_dict(torch.load(OPTIM_PATH))
 
-    opt = optim.SGD(model.parameters(), lr=1e-3)
     output = np.zeros([28 * 28], dtype=np.uint8)
     for i in random.sample(list(range(len(output))), len(output)):
         inputs = torch.from_numpy(np.array([i // 28, i % 28])).long()
