@@ -11,9 +11,9 @@ def iterate_mini_datasets(train=True):
         inputs = []
         outputs = []
         for i in random.sample(list(range(len(image))), len(image)):
-            inputs.append([(i // 28) / 27, (i % 28) / 27])
+            inputs.append([i // 28, i % 28])
             outputs.append([0.0 if image[i] < 0.5 else 1.0])
-        yield np.array(inputs), np.array(outputs)
+        yield np.array(inputs, dtype='long'), np.array(outputs, dtype='float32')
 
 
 def iterate_images(train=True):

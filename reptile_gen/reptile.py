@@ -24,7 +24,7 @@ def run_sgd_epoch(model, inputs, outputs, lr):
     opt = optim.SGD(model.parameters(), lr=lr)
     losses = []
     for x, y in zip(inputs, outputs):
-        out = model(torch.from_numpy(x[None]).to(device).float())
+        out = model(torch.from_numpy(x[None]).to(device).long())
         target = torch.from_numpy(y[None]).to(device).float()
         loss = F.binary_cross_entropy_with_logits(out, target)
         opt.zero_grad()

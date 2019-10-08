@@ -18,8 +18,8 @@ def main():
     opt = optim.SGD(model.parameters(), lr=1e-3)
     output = np.zeros([28 * 28], dtype=np.uint8)
     for i in random.sample(list(range(len(output))), len(output)):
-        inputs = torch.from_numpy(np.array([(i // 28) / 27, (i % 28) / 27])).float()
-        outs = model(inputs)
+        inputs = torch.from_numpy(np.array([i // 28, i % 28])).long()
+        outs = model(inputs[None])[0]
         out_prob = torch.sigmoid(outs).item()
         if random.random() < out_prob:
             output[i] = 255
