@@ -4,8 +4,8 @@ import torch
 import torch.nn.functional as F
 
 
-def reptile_step(model, inputs, outputs, optimizer, epsilon=0.1):
-    train_fn = functools.partial(run_sgd_epoch, model, inputs, outputs, optimizer)
+def reptile_step(model, inputs, outputs, optimizer, epsilon=0.01, batch=1):
+    train_fn = functools.partial(run_sgd_epoch, model, inputs, outputs, optimizer, batch)
     return interpolate_parameters(model.parameters(), epsilon, train_fn)
 
 
@@ -18,7 +18,7 @@ def interpolate_parameters(parameters, epsilon, fn):
     return res
 
 
-def run_sgd_epoch(model, inputs, outputs, optimizer, batch=1):
+def run_sgd_epoch(model, inputs, outputs, optimizer, batch):
     device = next(model.parameters()).device
     losses = []
     for i in range(0, len(inputs), batch):

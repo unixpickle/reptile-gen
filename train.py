@@ -11,6 +11,8 @@ from reptile_gen.reptile import reptile_step
 OUT_PATH = 'model.pt'
 OPTIM_PATH = 'optimizer.pt'
 AVG_SIZE = 1000
+BIG_BATCH = 28
+BIG_ITERS = 19
 
 
 def main():
@@ -21,12 +23,16 @@ def main():
     opt = optim.Adam(model.parameters(), betas=(0, 0.999))
     if os.path.exists(OPTIM_PATH):
         opt.load_state_dict(torch.load(OPTIM_PATH))
+    big_opt = optim.Adam(model.parameters(), betas=(0, 0.999))
     for i, (inputs, outputs) in enumerate(iterate_mini_datasets()):
+        big_losses = [reptile_step(model, inputs, outputs, big_opt, batch=BIG_BATCH)
+                      for _ in range(BIG_ITERS)]
         losses = reptile_step(model, inputs, outputs, opt)
         loss = np.mean(losses)
         last_n.append(loss)
         last_n = last_n[-AVG_SIZE:]
-        print('step %d: loss=%f last_%d=%f' % (i, np.mean(losses), AVG_SIZE, np.mean(last_n)))
+        print('step %d: loss=%f big_loss=%f last_%d=%f' %
+              (i, np.mean(losses), np.mean(big_losses), AVG_SIZE, np.mean(last_n)))
         if i % 100 == 0:
             torch.save(model.state_dict(), OUT_PATH)
             torch.save(opt.state_dict(), OPTIM_PATH)
