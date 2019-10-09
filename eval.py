@@ -13,7 +13,7 @@ OPTIM_PATH = 'optimizer.pt'
 def main():
     model = MNISTModel()
     model.load_state_dict(torch.load(OUT_PATH))
-    opt = optim.Adam(model.parameters(), betas=(0, 0.999))
+    opt = optim.Adam(model.parameters(), lr=2e-4, betas=(0, 0.999))
     opt.load_state_dict(torch.load(OPTIM_PATH))
     history = []
     for i, (inputs, outputs) in enumerate(iterate_mini_datasets(train=False)):

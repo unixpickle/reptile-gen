@@ -21,7 +21,7 @@ def main():
     if os.path.exists(OUT_PATH):
         model.load_state_dict(torch.load(OUT_PATH))
     last_n = []
-    opt = optim.Adam(model.parameters(), betas=(0, 0.999))
+    opt = optim.Adam(model.parameters(), lr=2e-4, betas=(0, 0.999))
     if os.path.exists(OPTIM_PATH):
         opt.load_state_dict(torch.load(OPTIM_PATH))
     big_opt = optim.Adam(model.parameters(), betas=(0, 0.999))
