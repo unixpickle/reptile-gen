@@ -14,7 +14,7 @@ def interpolate_parameters(parameters, epsilon, fn):
     backup = [p.data.clone() for p in parameters]
     res = fn()
     for b, p in zip(backup, parameters):
-        p.data.copy_(b + epsilon * (p - b))
+        p.data.copy_(b + epsilon * (p.data - b))
     return res
 
 
