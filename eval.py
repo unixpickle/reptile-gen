@@ -17,7 +17,7 @@ def main():
     opt.load_state_dict(torch.load(OPTIM_PATH))
     history = []
     for i, (inputs, outputs) in enumerate(iterate_mini_datasets(train=False)):
-        losses = reptile_step(model, inputs, outputs, opt)
+        losses = reptile_step(model, inputs, outputs, opt, epsilon=0)
         history.append(np.mean(losses))
         print('step %d: loss=%f' % (i, np.mean(history)))
 
