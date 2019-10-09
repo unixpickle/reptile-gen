@@ -1,3 +1,4 @@
+import itertools
 import os
 
 import numpy as np
@@ -24,9 +25,14 @@ def main():
     if os.path.exists(OPTIM_PATH):
         opt.load_state_dict(torch.load(OPTIM_PATH))
     big_opt = optim.Adam(model.parameters(), betas=(0, 0.999))
-    for i, (inputs, outputs) in enumerate(iterate_mini_datasets()):
-        big_losses = [reptile_step(model, inputs, outputs, big_opt, batch=BIG_BATCH)
-                      for _ in range(BIG_ITERS)]
+    mini_batches = iterate_mini_datasets()
+    for i in itertools.count():
+        big_losses = []
+        for _ in range(BIG_ITERS):
+            inputs, outputs = next(mini_batches)
+            losses = reptile_step(model, inputs, outputs, big_opt, batch=BIG_BATCH)
+            big_losses.append(losses)
+        inputs, outputs = next(mini_batches)
         losses = reptile_step(model, inputs, outputs, opt)
         loss = np.mean(losses)
         last_n.append(loss)
