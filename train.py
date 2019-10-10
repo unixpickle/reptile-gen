@@ -5,7 +5,7 @@ import numpy as np
 import torch
 import torch.optim as optim
 
-from reptile_gen.data import iterate_mini_datasets
+from reptile_gen.mnist import iterate_mini_datasets
 from reptile_gen.model import MNISTModel
 from reptile_gen.reptile import reptile_grad
 

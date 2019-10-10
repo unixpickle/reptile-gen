@@ -13,7 +13,8 @@ def iterate_mini_datasets(train=True):
         for i in random.sample(list(range(len(image))), len(image)):
             inputs.append([i // 28, i % 28])
             outputs.append([0.0 if image[i] < 0.5 else 1.0])
-        yield np.array(inputs, dtype='long'), np.array(outputs, dtype='float32')
+        yield (torch.from_numpy(np.array(inputs)).long(),
+               torch.from_numpy(np.array(outputs)).float())
 
 
 def iterate_images(train=True):
