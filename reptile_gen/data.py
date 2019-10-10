@@ -20,5 +20,9 @@ def iterate_images(train=True):
     mnist = datasets.MNIST('data', train=train, download=True,
                            transform=transforms.ToTensor())
     loader = torch.utils.data.DataLoader(mnist, batch_size=1, shuffle=True)
-    for images, _ in loader:
-        yield images[0].numpy()
+    while True:
+        try:
+            for images, _ in loader:
+                yield images[0].numpy()
+        except StopIteration:
+            pass
