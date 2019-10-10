@@ -1,20 +1,14 @@
-import functools
-
 import torch
 import torch.nn.functional as F
 
 
-def reptile_step(model, inputs, outputs, optimizer, epsilon=0.01, batch=1):
-    train_fn = functools.partial(run_sgd_epoch, model, inputs, outputs, optimizer, batch)
-    return interpolate_parameters(model.parameters(), epsilon, train_fn)
-
-
-def interpolate_parameters(parameters, epsilon, fn):
-    parameters = list(parameters)
+def reptile_grad(model, inputs, outputs, optimizer, batch=1):
+    parameters = list(model.parameters())
     backup = [p.data.clone() for p in parameters]
-    res = fn()
+    res = run_sgd_epoch(model, inputs, outputs, optimizer, batch)
     for b, p in zip(backup, parameters):
-        p.data.copy_(b + epsilon * (p.data - b))
+        p.grad.copy_(b - p.data)
+        p.data.copy_(b)
     return res
 
 
