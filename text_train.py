@@ -8,8 +8,8 @@ from reptile_gen.model import TextModel
 from reptile_gen.reptile import reptile_grad
 from reptile_gen.text_data import iterate_mini_datasets
 
-OUT_PATH = 'model.pt'
-OPTIM_PATH = 'optimizer.pt'
+OUT_PATH = 'text_model.pt'
+OPTIM_PATH = 'text_optimizer.pt'
 DATASET = 'text_data/dir_listing.txt'
 AVG_SIZE = 1000
 

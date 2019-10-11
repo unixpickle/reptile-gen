@@ -5,8 +5,7 @@ import torch.optim as optim
 
 from reptile_gen.model import TextModel
 
-OUT_PATH = 'model.pt'
-OPTIM_PATH = 'optimizer.pt'
+from text_train import OUT_PATH, OPTIM_PATH
 
 
 def main():
