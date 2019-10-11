@@ -5,14 +5,13 @@ import torch.optim as optim
 
 from reptile_gen.model import TextModel
 
-from text_train import OUT_PATH, OPTIM_PATH
+from text_train import OUT_PATH, INNER_ITERS
 
 
 def main():
     model = TextModel()
     model.load_state_dict(torch.load(OUT_PATH))
-    opt = optim.Adam(model.parameters(), lr=2e-4, betas=(0, 0.999))
-    opt.load_state_dict(torch.load(OPTIM_PATH))
+    opt = optim.SGD(model.parameters(), lr=1e-3)
 
     sequence = []
 
@@ -24,11 +23,13 @@ def main():
         sequence.append(int(sample))
         if sample == 0:
             break
-        targets = torch.from_numpy(np.array([sample])).long()
-        loss = F.cross_entropy(logits, targets)
-        opt.zero_grad()
-        loss.backward()
-        opt.step()
+        for _ in range(INNER_ITERS):
+            logits = model(inputs)
+            targets = torch.from_numpy(np.array([sample])).long()
+            loss = F.cross_entropy(logits, targets)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
 
     print(str(bytes([min(0x79, x) for x in sequence]), 'ascii'))
 
