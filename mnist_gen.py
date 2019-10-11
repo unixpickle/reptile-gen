@@ -7,16 +7,13 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from reptile_gen.model import MNISTModel
-
-IN_PATH = 'model.pt'
-OPTIM_PATH = 'optimizer.pt'
+from mnist_train import INNER_ITERS, OUT_PATH
 
 
 def main():
     model = MNISTModel()
-    model.load_state_dict(torch.load(IN_PATH))
-    opt = optim.Adam(model.parameters(), betas=(0, 0.999))
-    opt.load_state_dict(torch.load(OPTIM_PATH))
+    model.load_state_dict(torch.load(OUT_PATH))
+    opt = optim.SGD(model.parameters(), lr=1e-3)
 
     output = np.zeros([28 * 28], dtype=np.uint8)
     for i in random.sample(list(range(len(output))), len(output)):
@@ -29,10 +26,13 @@ def main():
         else:
             output[i] = 0
             target = [0.0]
-        loss = F.binary_cross_entropy_with_logits(outs, torch.from_numpy(np.array(target)).float())
-        opt.zero_grad()
-        loss.backward()
-        opt.step()
+        for j in range(INNER_ITERS):
+            outs = model(inputs[None])[0]
+            float_target = torch.from_numpy(np.array(target)).float()
+            loss = F.binary_cross_entropy_with_logits(outs, float_target)
+            opt.zero_grad()
+            loss.backward()
+            opt.step()
 
     output = output.reshape([28, 28, 1])
     output = np.concatenate([output]*3, axis=-1)
