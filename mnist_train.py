@@ -41,7 +41,7 @@ def main():
         last_n = last_n[-AVG_SIZE:]
         print('step %d: loss=%f big_loss=%f last_%d=%f' %
               (i, np.mean(losses), np.mean(big_losses), AVG_SIZE, np.mean(last_n)))
-        if i % 100 == 0:
+        if i % 10 == 0:
             torch.save(model.state_dict(), OUT_PATH)
 
 
