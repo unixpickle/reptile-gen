@@ -24,6 +24,7 @@ def main():
     if os.path.exists(OPTIM_PATH):
         opt.load_state_dict(torch.load(OPTIM_PATH))
     for i, (inputs, outputs) in enumerate(iterate_mini_datasets(DATASET)):
+        outer_opt.zero_grad()
         losses = reptile_grad(model, inputs, outputs, opt)
         outer_opt.step()
         loss = np.mean(losses)

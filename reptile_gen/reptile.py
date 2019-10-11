@@ -1,12 +1,17 @@
+import torch
 import torch.nn.functional as F
 
 
 def reptile_grad(model, inputs, outputs, optimizer, inner_iters=1, batch=1):
     parameters = list(model.parameters())
     backup = [p.data.clone() for p in parameters]
+    backup_grads = [p.grad.clone() if p.grad is not None else None
+                    for p in parameters]
     res = run_sgd_epoch(model, inputs, outputs, optimizer, inner_iters, batch)
-    for b, p in zip(backup, parameters):
-        p.grad.copy_(b - p.data)
+    for bg, b, p in zip(backup_grads, backup, parameters):
+        if bg is None:
+            bg = torch.zeros_like(b)
+        p.grad.copy_(bg + b - p.data)
         p.data.copy_(b)
     return res
 

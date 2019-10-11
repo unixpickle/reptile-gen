@@ -21,17 +21,17 @@ def main():
     if os.path.exists(OUT_PATH):
         model.load_state_dict(torch.load(OUT_PATH))
     last_n = []
-    outer_opt = optim.Adam(model.parameters(), lr=1e-4)
+    outer_opt = optim.Adam(model.parameters(), lr=1e-3)
     opt = optim.SGD(model.parameters(), lr=1e-3)
     big_opt = optim.SGD(model.parameters(), lr=1e-3)
     mini_batches = iterate_mini_datasets()
     for i in itertools.count():
         big_losses = []
+        outer_opt.zero_grad()
         for _ in range(BIG_ITERS):
             inputs, outputs = next(mini_batches)
             losses = reptile_grad(model, inputs, outputs, big_opt,
                                   inner_iters=INNER_ITERS, batch=BIG_BATCH)
-            outer_opt.step()
             big_losses.append(losses)
         inputs, outputs = next(mini_batches)
         losses = reptile_grad(model, inputs, outputs, opt, inner_iters=INNER_ITERS)
