@@ -5,7 +5,7 @@ import torch.optim as optim
 
 from reptile_gen.model import TextModel
 
-from text_train import OUT_PATH, INNER_ITERS
+from text_train import OUT_PATH
 
 
 def main():
@@ -23,13 +23,11 @@ def main():
         sequence.append(int(sample))
         if sample == 0:
             break
-        for _ in range(INNER_ITERS):
-            logits = model(inputs)
-            targets = torch.from_numpy(np.array([sample])).long()
-            loss = F.cross_entropy(logits, targets)
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
+        targets = torch.from_numpy(np.array([sample])).long()
+        loss = F.cross_entropy(logits, targets)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
 
     print(str(bytes([min(0x79, x) for x in sequence]), 'ascii'))
 

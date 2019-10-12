@@ -7,7 +7,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 from reptile_gen.model import MNISTModel
-from mnist_train import INNER_ITERS, OUT_PATH
+from mnist_train import OUT_PATH
 
 
 def main():
@@ -26,13 +26,12 @@ def main():
         else:
             output[i] = 0
             target = [0.0]
-        for j in range(INNER_ITERS):
-            outs = model(inputs[None])[0]
-            float_target = torch.from_numpy(np.array(target)).float()
-            loss = F.binary_cross_entropy_with_logits(outs, float_target)
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
+        outs = model(inputs[None])[0]
+        float_target = torch.from_numpy(np.array(target)).float()
+        loss = F.binary_cross_entropy_with_logits(outs, float_target)
+        opt.zero_grad()
+        loss.backward()
+        opt.step()
 
     output = output.reshape([28, 28, 1])
     output = np.concatenate([output]*3, axis=-1)

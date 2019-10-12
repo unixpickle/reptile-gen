@@ -36,6 +36,12 @@ class TextModel(nn.Module):
             nn.ReLU(),
             nn.Linear(512, 512),
             nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
+            nn.Linear(512, 512),
+            nn.ReLU(),
             nn.Linear(512, 256),
         )
 
