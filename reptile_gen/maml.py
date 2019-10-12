@@ -32,7 +32,7 @@ def maml_grad(model, inputs, outputs, lr, batch=1):
             param.data.copy_(x)
         final_values.append(updated)
     gradient = [torch.zeros_like(p) for p in params]
-    for loss, initial, final in zip(losses, initial_values, final_values)[::-1]:
+    for loss, initial, final in list(zip(losses, initial_values, final_values))[::-1]:
         for p, x in zip(params, initial):
             p.data.copy_(x)
         grad1 = torch.autograd.grad(loss, params, retain_graph=True)
