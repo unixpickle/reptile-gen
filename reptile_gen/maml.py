@@ -1,8 +1,10 @@
+import math
+
 import torch
 import torch.nn.functional as F
 
 
-def maml_grad(model, inputs, outputs, lr, batch=1):
+def maml_grad(model, inputs, outputs, lr, batch=1, checkpoint=False):
     """
     Update the model gradient using MAML.
     """
@@ -13,8 +15,11 @@ def maml_grad(model, inputs, outputs, lr, batch=1):
         loss_fn = F.binary_cross_entropy_with_logits
     else:
         loss_fn = F.cross_entropy
-    gradient, losses = _maml_grad(model, batches, lr, loss_fn,
-                                   [torch.zeros_like(p) for p in params])
+    if not checkpoint:
+        gradient, losses = _maml_grad(model, batches, lr, loss_fn,
+                                      [torch.zeros_like(p) for p in params])
+    else:
+        gradient, losses = _checkpointed_maml_grad(model, batches, lr, loss_fn)
     for p, g in zip(params, gradient):
         if p.grad is None:
             p.grad = g
@@ -26,6 +31,29 @@ def maml_grad(model, inputs, outputs, lr, batch=1):
 def _split_batches(inputs, outputs, batch):
     for i in range(0, inputs.shape[0], batch):
         yield (inputs[i:i+batch], outputs[i:i+batch])
+
+
+def _checkpointed_maml_grad(model, batches, lr, loss_fn):
+    params = list(model.parameters())
+    interval = int(math.sqrt(len(batches)))
+    checkpoints = []
+    scalar_losses = []
+    for i, (x, y) in enumerate(batches):
+        if i % interval == 0:
+            checkpoints.append([p.clone().detach() for p in params])
+        out = model(x)
+        loss = loss_fn(out, y)
+        scalar_losses.append(loss.item())
+        grads = torch.autograd.grad(loss, params)
+        for p, g in zip(params, grads):
+            p.data.add_(-lr * g)
+    gradient = [torch.zeros_like(p) for p in params]
+    for i in list(range(0, len(batches), interval))[::-1]:
+        checkpoint = checkpoints[i // interval]
+        for p, v in zip(params, checkpoint):
+            p.data.copy_(v)
+        gradient, _ = _maml_grad(model, batches[i:i+interval], lr, loss_fn, gradient)
+    return gradient, scalar_losses
 
 
 def _maml_grad(model, batches, lr, loss_fn, grad_outputs):
