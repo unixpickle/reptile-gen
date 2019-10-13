@@ -33,7 +33,7 @@ def main():
             outer_opt.zero_grad()
             torch.save(model.state_dict(), OUT_PATH)
             print('step %d: loss=%f last_%d=%f' %
-                  (i, np.mean(losses), AVG_SIZE, np.mean(last_n)))
+                  (i//META_BATCH, np.mean(losses), AVG_SIZE, np.mean(last_n)))
 
 
 if __name__ == '__main__':
