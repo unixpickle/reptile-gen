@@ -18,7 +18,7 @@ def batched_grad(model, grad_fn, batch, threads=1, device='cpu'):
         if device != 'cpu':
             model.to(d)
         res = grad_fn(model, inputs.to(d), outputs.to(d))
-        return [p.grad for p in model.parameters()], res
+        return [p.grad.cpu() for p in model.parameters()], res
 
     pool = Pool(min(len(batch), threads))
     pickled_fn = cloudpickle.dumps(run_grad_fn)
