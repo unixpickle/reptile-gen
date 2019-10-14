@@ -5,13 +5,9 @@ import torch
 
 
 def batched_grad(model, grad_fn, batch, threads=1, device='cpu'):
-    model_class = model.__class__
-    model_dict = {x: y.cpu().numpy() for x, y in model.state_dict().items()}
-
     def run_grad_fn(inputs, outputs):
-        model = model_class()
-        state = {x: torch.from_numpy(y) for x, y in model_dict.items()}
-        model.load_state_dict(state)
+        for p in model.parameters():
+            p.grad = None
         d = torch.device(device)
         if device != 'cpu':
             model.to(d)
