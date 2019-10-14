@@ -1,12 +1,10 @@
-from multiprocessing import Pool, set_start_method
+import multiprocessing
 
 import cloudpickle
 import torch
 
 
 def batched_grad(model, grad_fn, batch, threads=1, device='cpu'):
-    set_start_method('spawn', force=True)
-
     model_class = model.__class__
     model_dict = {x: y.cpu().numpy() for x, y in model.state_dict().items()}
 
@@ -20,11 +18,11 @@ def batched_grad(model, grad_fn, batch, threads=1, device='cpu'):
         res = grad_fn(model, inputs.to(d), outputs.to(d))
         return [p.grad.cpu() for p in model.parameters()], res
 
-    pool = Pool(min(len(batch), threads))
     pickled_fn = cloudpickle.dumps(run_grad_fn)
-    raw_results = pool.map(call_pickled_fn, [(pickled_fn, x) for x in batch])
+    ctx = multiprocessing.get_context('spawn')
+    with ctx.Pool(min(len(batch), threads)) as pool:
+        raw_results = pool.map(call_pickled_fn, [(pickled_fn, x) for x in batch])
     grads, results = list(zip(*raw_results))
-    pool.close()
 
     for grad in grads:
         for p, g in zip(model.parameters(), grad):
