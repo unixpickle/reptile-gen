@@ -5,12 +5,13 @@ import numpy as np
 import torch
 import torch.optim as optim
 
+from reptile_gen.batching import batched_grad
 from reptile_gen.mnist import iterate_mini_datasets
 from reptile_gen.model import MNISTModel
 from reptile_gen.reptile import reptile_grad
 
 OUT_PATH = 'model.pt'
-AVG_SIZE = 1000
+AVG_SIZE = 20
 META_BATCH = 50
 
 
@@ -23,17 +24,19 @@ def main():
     mini_batches = iterate_mini_datasets()
     last_n = []
     for i in itertools.count():
-        inputs, outputs = next(mini_batches)
-        losses = reptile_grad(model, inputs, outputs, opt)
+        outer_opt.zero_grad()
+
+        def grad_fn(model, x, y):
+            return reptile_grad(model, x, y, opt)
+
+        batch = [next(mini_batches) for _ in range(META_BATCH)]
+        losses = batched_grad(model, grad_fn, batch)
         loss = np.mean(losses)
         last_n.append(loss)
         last_n = last_n[-AVG_SIZE:]
-        if i % META_BATCH == 0:
-            outer_opt.step()
-            outer_opt.zero_grad()
-            torch.save(model.state_dict(), OUT_PATH)
-            print('step %d: loss=%f last_%d=%f' %
-                  (i//META_BATCH, np.mean(losses), AVG_SIZE, np.mean(last_n)))
+        outer_opt.step()
+        torch.save(model.state_dict(), OUT_PATH)
+        print('step %d: loss=%f last_%d=%f' % (i, np.mean(losses), AVG_SIZE, np.mean(last_n)))
 
 
 if __name__ == '__main__':
