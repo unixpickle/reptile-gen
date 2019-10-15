@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,7 +8,8 @@ import torch.optim as optim
 from maml import maml_grad
 
 
-def test_maml_grad():
+@pytest.mark.parametrize('checkpoint', [False, True])
+def test_maml_grad(checkpoint):
     model = nn.Sequential(
         nn.Linear(3, 4),
         nn.Tanh(),
@@ -15,28 +17,31 @@ def test_maml_grad():
         nn.Tanh(),
         nn.Linear(3, 1),
     )
+
+    # More precision for gradient checking.
     model.to(torch.double)
-    inputs = torch.from_numpy(np.array([[1.0, 2.0, -0.5], [0.5, 1, -1]]))
-    outputs = torch.from_numpy(np.array([[0.9], [0.2]]))
+
+    inputs = torch.from_numpy(np.array([[1.0, 2.0, -0.5], [0.5, 1, -1], [0, 1, 2]]))
+    outputs = torch.from_numpy(np.array([[0.9], [0.2], [0.4]]))
 
     # Make sure single-step gradients are correct
     # without any numerical approximation.
-    exact_grads = _exact_maml_grad(model, inputs[:1], outputs[:1], 0.01)
-    step_grads = _numerical_maml_grad(model, inputs[:1], outputs[:1], 0.01)
+    exact_grads = _exact_maml_grad(model, inputs[:1], outputs[:1], 0.01, checkpoint)
+    step_grads = _one_step_maml_grad(model, inputs[:1], outputs[:1], 0.01)
     for i, (ex, ap) in enumerate(zip(exact_grads, step_grads)):
         assert np.allclose(ex, ap, rtol=1e-4, atol=1e-4)
 
-    exact_grads = _exact_maml_grad(model, inputs, outputs, 0.01)
+    exact_grads = _exact_maml_grad(model, inputs, outputs, 0.01, checkpoint)
     approx_grads = _numerical_maml_grad(model, inputs, outputs, 0.01)
     for ex, ap in zip(exact_grads, approx_grads):
         assert np.allclose(ex, ap, rtol=1e-4, atol=1e-4)
 
 
-def _exact_maml_grad(model, inputs, outputs, lr):
+def _exact_maml_grad(model, inputs, outputs, lr, checkpoint):
     for p in model.parameters():
         p.grad = None
-    maml_grad(model, inputs, outputs, lr)
-    return [p.grad.numpy() for p in model.parameters()]
+    maml_grad(model, inputs, outputs, lr, checkpoint=checkpoint)
+    return [p.grad.numpy().copy() for p in model.parameters()]
 
 
 def _one_step_maml_grad(model, inputs, outputs, lr):
