@@ -11,6 +11,8 @@ from reptile_gen.mnist import pixel_indices
 from reptile_gen.model import MNISTModel
 from mnist_train import OUT_PATH
 
+GRID_SIZE = 4
+
 
 def main():
     device = torch.device(best_available_device())
@@ -18,6 +20,18 @@ def main():
     model = MNISTModel()
     model.load_state_dict(torch.load(OUT_PATH))
     model.to(device)
+
+    grid = np.zeros([28 * GRID_SIZE, 28 * GRID_SIZE, 3], dtype=np.uint8)
+    for i in range(GRID_SIZE):
+        for j in range(GRID_SIZE):
+            print('generating tile %d,%d' % (i, j))
+            grid[28*i:28*(i+1), 28*j:28*(j+1)] = generate_single(model, device)
+
+    Image.fromarray(grid).save('samples.png')
+
+
+def generate_single(model, device):
+    backup = [p.clone().detach() for p in model.parameters()]
     opt = optim.SGD(model.parameters(), lr=1e-3)
 
     output = np.zeros([28 * 28], dtype=np.uint8)
@@ -40,7 +54,11 @@ def main():
 
     output = output.reshape([28, 28, 1])
     output = np.concatenate([output]*3, axis=-1)
-    Image.fromarray(output).save('sample.png')
+
+    for p, b in zip(model.parameters(), backup):
+        p.data.copy_(b)
+
+    return output
 
 
 if __name__ == '__main__':
