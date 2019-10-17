@@ -6,6 +6,7 @@ import torch
 import torch.optim as optim
 
 from reptile_gen.batching import batched_grad
+from reptile_gen.device import best_available_device
 from reptile_gen.mnist import iterate_mini_datasets
 from reptile_gen.model import MNISTModel
 from reptile_gen.reptile import reptile_grad
@@ -30,7 +31,12 @@ def main():
             return reptile_grad(model, x, y, opt)
 
         batch = [next(mini_batches) for _ in range(META_BATCH)]
-        losses = batched_grad(model, grad_fn, batch)
+        threads = 1
+        if best_available_device() != 'cpu':
+            threads = 4
+        losses = batched_grad(model, grad_fn, batch,
+                              device=best_available_device(),
+                              threads=threads)
         loss = np.mean(losses)
         last_n.append(loss)
         last_n = last_n[-AVG_SIZE:]

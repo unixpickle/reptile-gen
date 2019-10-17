@@ -5,16 +5,23 @@ import torch
 from torchvision import datasets, transforms
 
 
-def iterate_mini_datasets(train=True):
+def iterate_mini_datasets(train=True, ordered=False):
     for image in iterate_images(train=train):
         image = image.flatten()
         inputs = []
         outputs = []
-        for i in random.sample(list(range(len(image))), len(image)):
+        for i in pixel_indices(ordered=ordered):
             inputs.append([i // 28, i % 28])
             outputs.append([0.0 if image[i] < 0.5 else 1.0])
         yield (torch.from_numpy(np.array(inputs)).long(),
                torch.from_numpy(np.array(outputs)).float())
+
+
+def pixel_indices(ordered=False):
+    res = list(range(28 * 28))
+    if ordered:
+        return res
+    return random.sample(res, len(res))
 
 
 def iterate_images(train=True):
