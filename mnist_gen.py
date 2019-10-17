@@ -45,7 +45,6 @@ def generate_single(model, device):
         else:
             output[i] = 0
             target = [0.0]
-        outs = model(inputs[None])[0]
         float_target = torch.from_numpy(np.array(target)).to(device).float()
         loss = F.binary_cross_entropy_with_logits(outs, float_target)
         opt.zero_grad()
