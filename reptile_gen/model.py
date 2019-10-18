@@ -32,15 +32,16 @@ class MNISTModel(nn.Module):
 
 
 class MNISTBaseline(nn.Module):
-    def __init__(self, layers=3, stop_grad=True):
+    def __init__(self, layers=3, stop_grad=False):
         super().__init__()
         self.stop_grad = stop_grad
         self.x_embed = nn.Embedding(28, 128)
         self.y_embed = nn.Embedding(28, 128)
         self.prev_embed = nn.Embedding(2, 128)
-        self.rnn = nn.RNN(128*3, 256, num_layers=layers)
+        self.rnn = nn.LSTM(128*3, 256, num_layers=layers)
         self.out_layer = nn.Linear(256, 1)
-        self.init_hidden = nn.Parameter(torch.zeros([layers, 256], dtype=torch.float))
+        self.init_hidden = [nn.Parameter(torch.zeros([layers, 256], dtype=torch.float))
+                            for _ in range(2)]
 
     def forward(self, inputs, hidden=None):
         x_vec = self.x_embed(inputs[:, :, 0])
@@ -50,7 +51,7 @@ class MNISTBaseline(nn.Module):
 
         batch = x.shape[1]
         if hidden is None:
-            hidden = self.init_hidden[:, None].repeat(1, batch, 1)
+            hidden = tuple(h[:, None].repeat(1, batch, 1) for h in self.init_hidden)
 
         outputs = []
         for t in range(inputs.shape[0]):
@@ -58,7 +59,7 @@ class MNISTBaseline(nn.Module):
             outs = self.out_layer(outs.view(batch, -1)).view(1, batch, 1)
             outputs.append(outs)
             if self.stop_grad:
-                hidden = hidden.detach()
+                hidden = tuple(h.detach() for h in hidden)
 
         return torch.cat(outputs, dim=0), hidden
 
