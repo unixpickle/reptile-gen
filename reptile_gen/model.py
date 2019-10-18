@@ -14,13 +14,13 @@ class MNISTModel(nn.Module):
         self.layers = nn.Sequential(
             nn.Linear(256, 512),
             nn.ReLU(),
-            ParallelLinear(512, 8),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            ParallelLinear(512, 8),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            ParallelLinear(512, 8),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            ParallelLinear(512, 8),
+            nn.Linear(512, 512),
             nn.ReLU(),
             nn.Linear(512, 1),
         )
@@ -29,22 +29,6 @@ class MNISTModel(nn.Module):
         x_vec = self.x_embed(x[:, 0])
         y_vec = self.y_embed(x[:, 1])
         return self.layers(torch.cat([x_vec, y_vec], dim=-1))
-
-
-class ParallelLinear(nn.Module):
-    def __init__(self, in_size, num_heads):
-        super().__init__()
-        assert in_size % num_heads == 0, 'heads must divide input evenly'
-        self.in_size = in_size
-        self.num_heads = num_heads
-        self.layer = nn.Linear(in_size // num_heads, in_size // num_heads)
-
-    def forward(self, x):
-        batch = x.shape[0]
-        x = x.view(batch * self.num_heads, self.in_size // self.num_heads)
-        x = self.layer(x)
-        x = x.view(batch, self.in_size)
-        return x
 
 
 class MNISTBaseline(nn.Module):
