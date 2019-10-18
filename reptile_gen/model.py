@@ -40,10 +40,9 @@ class MNISTBaseline(nn.Module):
         self.prev_embed = nn.Embedding(2, 128)
         self.rnn = nn.LSTM(128*3, 256, num_layers=layers)
         self.out_layer = nn.Linear(256, 1)
-        self.init_hidden = [nn.Parameter(torch.zeros([layers, 256], dtype=torch.float))
-                            for _ in range(2)]
-        for i, h in enumerate(self.init_hidden):
-            self.register_parameter('hidden_%d', h)
+        for i in range(2):
+            p = nn.Parameter(torch.zeros([layers, 256], dtype=torch.float))
+            self.register_parameter('hidden_%d', p)
 
     def forward(self, inputs, hidden=None):
         x_vec = self.x_embed(inputs[:, :, 0])
@@ -53,7 +52,8 @@ class MNISTBaseline(nn.Module):
 
         batch = x.shape[1]
         if hidden is None:
-            hidden = tuple(h[:, None].repeat(1, batch, 1) for h in self.init_hidden)
+            init_hidden = (self.hidden_0, self.hidden_1)
+            hidden = tuple(h[:, None].repeat(1, batch, 1) for h in init_hidden)
 
         outputs = []
         for t in range(inputs.shape[0]):
