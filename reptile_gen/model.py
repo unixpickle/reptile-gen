@@ -42,7 +42,7 @@ class MNISTBaseline(nn.Module):
         self.out_layer = nn.Linear(256, 1)
         for i in range(2):
             p = nn.Parameter(torch.zeros([layers, 256], dtype=torch.float))
-            self.register_parameter('hidden_%d', p)
+            self.register_parameter('hidden_%d' % i, p)
 
     def forward(self, inputs, hidden=None):
         x_vec = self.x_embed(inputs[:, :, 0])
