@@ -51,6 +51,10 @@ def batched_reptile_grad(model, data_points, lr):
 
 
 def batched_run_sgd_epoch(model, inputs, outputs, lr):
+    # Adjust for fact that we average over the
+    # whole meta-batch.
+    lr *= inputs.shape[0]
+
     device = next(model.parameters()).device
     parameters = model.batch_parameters(inputs.shape[0])
     losses = []
