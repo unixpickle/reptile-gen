@@ -211,7 +211,7 @@ class BatchMultiEmbedding(BatchModule):
             self.add_module('module_%d' % i, layer)
 
     def forward(self, x):
-        return torch.cat([l(x) for l in self.embeddings], dim=-1)
+        return torch.cat([l(x[..., i]) for i, l in enumerate(self.embeddings)], dim=-1)
 
     def batch_forward(self, parameters, xs):
         outputs = []
