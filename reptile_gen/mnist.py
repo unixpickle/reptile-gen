@@ -5,7 +5,7 @@ import torch
 from torchvision import datasets, transforms
 
 
-def iterate_mini_datasets(train=True, ordered=False):
+def iterate_mini_datasets(train=True, ordered=True):
     for image in iterate_images(train=train):
         image = image.flatten()
         inputs = []
@@ -17,7 +17,7 @@ def iterate_mini_datasets(train=True, ordered=False):
                torch.from_numpy(np.array(outputs)).float())
 
 
-def pixel_indices(ordered=False):
+def pixel_indices(ordered=True):
     res = list(range(28 * 28))
     if ordered:
         return res
