@@ -9,7 +9,7 @@ import torch.nn.functional as F
 from reptile_gen.device import best_available_device
 from reptile_gen.mnist import pixel_indices
 from reptile_gen.model import batch_mnist_model
-from mnist_train import OUT_PATH
+from mnist_train import OUT_PATH, INNER_LR
 
 GRID_SIZE = 4
 
@@ -32,7 +32,7 @@ def main():
 
 def generate_single(model, device):
     backup = [p.clone().detach() for p in model.parameters()]
-    opt = optim.SGD(model.parameters(), lr=1e-3)
+    opt = optim.SGD(model.parameters(), lr=INNER_LR)
 
     output = np.zeros([28 * 28], dtype=np.uint8)
     for i in pixel_indices():
