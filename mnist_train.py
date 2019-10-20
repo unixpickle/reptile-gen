@@ -13,7 +13,7 @@ from reptile_gen.reptile import batched_reptile_grad
 OUT_PATH = 'model.pt'
 AVG_SIZE = 20
 META_BATCH = 50
-INNER_LR = 1e-3
+INNER_LR = 1e-2
 
 
 def main():
