@@ -113,27 +113,14 @@ class TextModel(nn.Module):
         return self.layers(t_vec)
 
 
-class BatchModule(ABC):
+class BatchModule(ABC, nn.Module):
     """
     A model which can be applied with a batch of
     parameters to a batch of input batches.
     """
 
-    def state_dict(self):
-        """
-        Get a savable dictionary for the model.
-        """
-        return {i: x for i, x in enumerate(self.parameters())}
-
-    def load_state_dict(self, d):
-        """
-        Load the parameters from a savable dictionary.
-        """
-        params = self.parameters()
-        for i, x in d.items():
-            p = params[i]
-            p.data.copy_(x)
-            p.grad = None
+    def __init__(self):
+        nn.Module.__init__(self)
 
     def batch_parameters(self, batch):
         """
@@ -148,16 +135,6 @@ class BatchModule(ABC):
             A tuple of batched parameters.
         """
         return tuple(x[None].repeat(batch, *([1]*len(x.shape))) for x in self.parameters())
-
-    @abstractmethod
-    def parameters(self):
-        """
-        Get a tuple of the current parameters.
-
-        Returns:
-            A tuple of parameters.
-        """
-        pass
 
     @abstractmethod
     def batch_forward(self, parameters, xs):
@@ -178,26 +155,33 @@ class BatchModule(ABC):
 
 class BatchSequential(BatchModule):
     def __init__(self, *layers):
+        super().__init__()
         self.layers = layers
+        for i, layer in enumerate(self.layers):
+            self.add_module('module_%d' % i, layer)
 
-    def parameters(self):
-        return [x for l in self.layers for x in l.parameters()]
+    def forward(self, x):
+        for l in self.layers:
+            x = l(x)
+        return x
 
     def batch_forward(self, parameters, xs):
         i = 0
         for l in self.layers:
-            num_params = len(l.parameters())
+            num_params = len(list(l.parameters()))
             ps = parameters[i:i+num_params]
+            i += num_params
             xs = l.batch_forward(ps, xs)
         return xs
 
 
 class BatchFn(BatchModule):
     def __init__(self, fn):
+        super().__init__()
         self.fn = fn
 
-    def parameters(self):
-        return ()
+    def forward(self, x):
+        return self.fn(x)
 
     def batch_forward(self, parameters, xs):
         return self.fn(xs)
@@ -205,42 +189,48 @@ class BatchFn(BatchModule):
 
 class BatchEmbedding(BatchModule):
     def __init__(self, num_inputs, num_outputs):
+        super().__init__()
         self.table = nn.Parameter(torch.randn(num_inputs, num_outputs))
 
-    def parameters(self):
-        return (self.table,)
+    def forward(self, x):
+        return F.embedding(x, self.table)
 
     def batch_forward(self, parameters, xs):
+        table = parameters[0]
         outputs = []
-        for i in range(parameters.shape[0]):
-            outputs.append(F.embedding(xs[i], parameters[i]))
+        for i in range(xs.shape[0]):
+            outputs.append(F.embedding(xs[i], table[i]))
         return torch.stack(outputs, dim=0)
 
 
 class BatchMultiEmbedding(BatchModule):
     def __init__(self, *embeddings):
+        super().__init__()
         self.embeddings = embeddings
+        for i, layer in enumerate(embeddings):
+            self.add_module('module_%d' % i, layer)
 
-    def parameters(self):
-        return tuple(x.parameters()[0] for x in self.embeddings)
+    def forward(self, x):
+        return torch.cat([l(x) for l in self.embeddings], dim=-1)
 
     def batch_forward(self, parameters, xs):
         outputs = []
         for i, (param, layer) in enumerate(zip(parameters, self.embeddings)):
-            outputs.append(layer.batch_forward(xs[..., i]))
+            outputs.append(layer.batch_forward((param,), xs[..., i]))
         return torch.cat(outputs, dim=-1)
 
 
 class BatchLinear(BatchModule):
     def __init__(self, num_inputs, num_outputs):
+        super().__init__()
         self.linear = nn.Linear(num_inputs, num_outputs)
 
-    def parameters(self):
-        return (self.linear.weight, self.linear.bias)
+    def forward(self, x):
+        return self.linear(x)
 
     def batch_forward(self, parameters, xs):
         weight, bias = parameters
-        output = torch.bmm(xs, weight)
+        output = torch.bmm(xs, weight.permute(0, 2, 1))
         output = output + bias[:, None]
         return output
 
