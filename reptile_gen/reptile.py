@@ -54,7 +54,7 @@ def batched_run_sgd_epoch(model, inputs, outputs, lr):
     device = next(model.parameters()).device
     parameters = model.batch_parameters(inputs.shape[0])
     losses = []
-    for i in range(inputs.shape[0]):
+    for i in range(inputs.shape[1]):
         x = inputs[:, i:i+1].to(device)
         y = outputs[:, i:i+1].to(device)
         out = model.batch_forward(parameters, x)
@@ -64,5 +64,6 @@ def batched_run_sgd_epoch(model, inputs, outputs, lr):
             loss = F.cross_entropy(out, y)
         losses.append(loss.item())
         grads = torch.autograd.grad(loss, parameters)
-        parameters = tuple(p - lr * g for p, g in zip(parameters, grads))
+        parameters = tuple((p - lr * g).detach().requires_grad_()
+                           for p, g in zip(parameters, grads))
     return losses, parameters
