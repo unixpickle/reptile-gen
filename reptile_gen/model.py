@@ -1,5 +1,5 @@
 """
-Models for generating images.
+Various models for using Reptile as a sequence model.
 """
 
 from abc import ABC, abstractmethod
@@ -7,50 +7,6 @@ from abc import ABC, abstractmethod
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-
-class SmallMNISTModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.x_embed = nn.Embedding(28, 128)
-        self.y_embed = nn.Embedding(28, 128)
-        self.layers = nn.Sequential(
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Linear(256, 256),
-            nn.ReLU(),
-            nn.Linear(256, 1),
-        )
-
-    def forward(self, x):
-        x_vec = self.x_embed(x[:, 0])
-        y_vec = self.y_embed(x[:, 1])
-        return self.layers(torch.cat([x_vec, y_vec], dim=-1))
-
-
-class MNISTModel(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.x_embed = nn.Embedding(28, 128)
-        self.y_embed = nn.Embedding(28, 128)
-        self.layers = nn.Sequential(
-            nn.Linear(256, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 1),
-        )
-
-    def forward(self, x):
-        x_vec = self.x_embed(x[:, 0])
-        y_vec = self.y_embed(x[:, 1])
-        return self.layers(torch.cat([x_vec, y_vec], dim=-1))
 
 
 class MNISTBaseline(nn.Module):
@@ -86,31 +42,6 @@ class MNISTBaseline(nn.Module):
                 hidden = tuple(h.detach() for h in hidden)
 
         return torch.cat(outputs, dim=0), hidden
-
-
-class TextModel(nn.Module):
-    def __init__(self, max_len=128):
-        super().__init__()
-        self.t_embed = nn.Embedding(max_len, 512)
-        self.layers = nn.Sequential(
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 256),
-        )
-
-    def forward(self, x):
-        t_vec = self.t_embed(x[:, 0])
-        return self.layers(t_vec)
 
 
 class BatchModule(ABC, nn.Module):
@@ -249,6 +180,25 @@ class BatchLinear(BatchModule):
         output = torch.bmm(xs, weight.permute(0, 2, 1))
         output = output + bias[:, None]
         return output
+
+
+def batch_text_model(max_len=128):
+    return BatchSequential(
+        BatchEmbedding(max_len, 512),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 256),
+    )
 
 
 def batch_mnist_model():
