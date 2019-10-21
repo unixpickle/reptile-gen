@@ -27,7 +27,7 @@ def batched_grad(model, grad_fn, batch, threads=1, device='cpu'):
             else:
                 p.grad.add_(g)
 
-    return results
+    return list(results)
 
 
 def call_pickled_fn(data_args):

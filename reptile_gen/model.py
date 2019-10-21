@@ -184,7 +184,9 @@ class BatchLinear(BatchModule):
 
 def batch_text_model(max_len=128):
     return BatchSequential(
-        BatchEmbedding(max_len, 512),
+        BatchMultiEmbedding(
+            BatchEmbedding(max_len, 512),
+        ),
         BatchLinear(512, 512),
         BatchFn(F.relu),
         BatchLinear(512, 512),
