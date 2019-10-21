@@ -182,6 +182,14 @@ class BatchLinear(BatchModule):
         return output
 
 
+class BatchResidual(BatchSequential):
+    def forward(self, x):
+        return super().forward(x) + x
+
+    def batch_forward(self, parameters, xs):
+        return super().batch_forward(parameters, xs) + xs
+
+
 def batch_text_model(max_len=128):
     return BatchSequential(
         BatchMultiEmbedding(
