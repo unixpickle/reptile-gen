@@ -187,6 +187,22 @@ class BatchFn(BatchModule):
         return self.fn(xs)
 
 
+class BatchLayerNorm(BatchModule):
+    def __init__(self, inner_dim):
+        super().__init__()
+        self.inner_dim = inner_dim
+        self.norm = nn.LayerNorm((inner_dim,))
+
+    def forward(self, x):
+        return self.norm(x)
+
+    def batch_forward(self, parameters, xs):
+        res = F.layer_norm(xs, (self.inner_dim,))
+        res *= parameters[0][:, None]
+        res += parameters[1][:, None]
+        return res
+
+
 class BatchEmbedding(BatchModule):
     def __init__(self, num_inputs, num_outputs):
         super().__init__()
@@ -242,14 +258,19 @@ def batch_mnist_model():
             BatchEmbedding(28, 128),
         ),
         BatchLinear(256, 512),
-        BatchFn(F.relu),
+        BatchLayerNorm(512),
+        BatchFn(F.leaky_relu),
         BatchLinear(512, 512),
-        BatchFn(F.relu),
+        BatchLayerNorm(512),
+        BatchFn(F.leaky_relu),
         BatchLinear(512, 512),
-        BatchFn(F.relu),
+        BatchLayerNorm(512),
+        BatchFn(F.leaky_relu),
         BatchLinear(512, 512),
-        BatchFn(F.relu),
+        BatchLayerNorm(512),
+        BatchFn(F.leaky_relu),
         BatchLinear(512, 512),
-        BatchFn(F.relu),
+        BatchLayerNorm(512),
+        BatchFn(F.leaky_relu),
         BatchLinear(512, 1),
     )
