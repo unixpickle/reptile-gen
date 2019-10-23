@@ -37,10 +37,10 @@ def run_sgd_epoch(model, inputs, outputs, optimizer, inner_iters, batch):
     return losses
 
 
-def batched_reptile_grad(model, data_points, lr):
+def batched_reptile_grad(model, data_points, lr, rprop=False):
     inputs = torch.stack([x for x, _ in data_points])
     outputs = torch.stack([y for _, y in data_points])
-    res, final_parameters = batched_run_sgd_epoch(model, inputs, outputs, lr)
+    res, final_parameters = batched_run_sgd_epoch(model, inputs, outputs, lr, rprop)
     for p, final in zip(model.parameters(), final_parameters):
         g = p.detach() - torch.mean(final, dim=0)
         if p.grad is None:
@@ -50,10 +50,11 @@ def batched_reptile_grad(model, data_points, lr):
     return res
 
 
-def batched_run_sgd_epoch(model, inputs, outputs, lr):
+def batched_run_sgd_epoch(model, inputs, outputs, lr, rprop):
     # Adjust for fact that we average over the
     # whole meta-batch.
-    lr *= inputs.shape[0]
+    if not rprop:
+        lr *= inputs.shape[0]
 
     device = next(model.parameters()).device
     parameters = model.batch_parameters(inputs.shape[0])
@@ -68,6 +69,8 @@ def batched_run_sgd_epoch(model, inputs, outputs, lr):
             loss = F.cross_entropy(out, y)
         losses.append(loss.item())
         grads = torch.autograd.grad(loss, parameters)
+        if rprop:
+            grads = [torch.sign(g) for g in grads]
         parameters = tuple((p - lr * g).detach().requires_grad_()
                            for p, g in zip(parameters, grads))
     return losses, parameters
