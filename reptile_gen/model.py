@@ -181,6 +181,10 @@ class BatchLinear(BatchModule):
         output = output + bias[:, None]
         return output
 
+def gated_act(x):
+    d = x.shape[-1] // 2
+    return x[..., :d] * torch.sigmoid(x[..., d:])
+
 
 class BatchResidual(BatchSequential):
     def forward(self, x):
@@ -217,20 +221,19 @@ def batch_mnist_model():
             BatchEmbedding(28, 128),
             BatchEmbedding(28, 128),
         ),
-        BatchLinear(256, 512),
+        BatchLinear(256, 1024),
+        BatchFn(gated_act),
         BatchLayerNorm(512),
-        BatchFn(F.leaky_relu),
-        BatchLinear(512, 512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
         BatchLayerNorm(512),
-        BatchFn(F.leaky_relu),
-        BatchLinear(512, 512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
         BatchLayerNorm(512),
-        BatchFn(F.leaky_relu),
-        BatchLinear(512, 512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
         BatchLayerNorm(512),
-        BatchFn(F.leaky_relu),
-        BatchLinear(512, 512),
-        BatchLayerNorm(512),
-        BatchFn(F.leaky_relu),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
         BatchLinear(512, 1),
     )
