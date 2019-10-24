@@ -13,7 +13,7 @@ from reptile_gen.reptile import batched_reptile_grad
 OUT_PATH = 'model.pt'
 AVG_SIZE = 20
 META_BATCH = 50
-INNER_LR = 1e-2
+INNER_LR = 1e-3
 
 
 def main():
@@ -22,7 +22,7 @@ def main():
     if os.path.exists(OUT_PATH):
         model.load_state_dict(torch.load(OUT_PATH))
     model.to(device)
-    outer_opt = optim.Adam(model.parameters(), lr=1e-3)
+    outer_opt = optim.Adam(model.parameters(), lr=1e-4, betas=(0.9, 0.99))
     mini_batches = iterate_mini_datasets()
     last_n = []
     for i in itertools.count():
