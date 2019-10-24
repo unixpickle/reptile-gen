@@ -6,11 +6,11 @@ import torch
 
 def iterate_mini_datasets(path, max_len=128):
     for line in iterate_lines(path):
-        if len(line) >= max_len - 1:
+        if len(line) > max_len - 1:
             line = line[:max_len - 1]
         inputs = []
         outputs = []
-        for i, ch in enumerate(line + [0]):
+        for i, ch in enumerate(line + [0]*(max_len - len(line))):
             inputs.append([i])
             outputs.append(ch)
         yield (torch.from_numpy(np.array(inputs)).long(),

@@ -65,7 +65,7 @@ def batched_run_sgd_epoch(model, inputs, outputs, lr):
         if y.dtype.is_floating_point:
             loss = F.binary_cross_entropy_with_logits(out, y)
         else:
-            loss = F.cross_entropy(out, y)
+            loss = F.cross_entropy(out.view(-1, out.shape[-1]), y.view(-1))
         losses.append(loss.item())
         grads = torch.autograd.grad(loss, parameters)
         parameters = tuple((p - lr * g).detach().requires_grad_()
