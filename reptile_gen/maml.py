@@ -21,7 +21,7 @@ def maml_grad(model, data_points, lr, checkpoint=True):
     Returns:
         A list of losses, one per inner-loop step.
     """
-    batch_size = data_points[0][0].shape[0]
+    batch_size = len(data_points)
 
     # Adjust for fact that we average over the
     # whole meta-batch.
@@ -56,12 +56,12 @@ def _checkpointed_maml_grad(model, parameters, inputs, outputs, lr):
         x = inputs[:, i:i+1]
         y = outputs[:, i:i+1]
         if i % interval == 0:
-            checkpoints.append(tuple(p.clone().detach().requires_grad for p in params))
+            checkpoints.append(tuple(p.clone().detach().requires_grad_() for p in params))
         out = model.batch_forward(params, x)
         loss = inferred_loss(out, y)
         losses.append(loss.item())
-        grads = torch.autograd.grad(loss, params)
-        params = tuple((p - lr * g).detach() for p, g in zip(params, grads))
+        grads = torch.autograd.grad(loss, params, retain_graph=True)
+        params = tuple((p - lr * g).detach().requires_grad_() for p, g in zip(params, grads))
     gradient = [torch.zeros_like(p) for p in params]
     for i in list(range(0, num_steps, interval))[::-1]:
         checkpoint = checkpoints[i // interval]
@@ -86,6 +86,8 @@ def _maml_grad(model, init_params, inputs, outputs, lr, grad_outputs):
         losses.append(loss.item())
         grads = torch.autograd.grad(loss, parameters, create_graph=True, retain_graph=True)
         parameters = tuple(p - lr * g for p, g in zip(parameters, grads))
-        total_loss = total_loss + loss
-    gradient = torch.autograd.grad(total_loss, init_params, grad_outputs=grad_outputs)
+        total_loss += loss
+    for p, u in zip(parameters, grad_outputs):
+        total_loss += torch.sum(p * u)
+    gradient = torch.autograd.grad(total_loss, init_params)
     return gradient, losses
