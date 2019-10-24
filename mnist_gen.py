@@ -8,7 +8,7 @@ import torch.nn.functional as F
 
 from reptile_gen.device import best_available_device
 from reptile_gen.mnist import pixel_indices
-from reptile_gen.model import batch_mnist_model
+from reptile_gen.model import make_mnist_model
 from mnist_train import OUT_PATH, INNER_LR
 
 GRID_SIZE = 4
@@ -17,7 +17,7 @@ GRID_SIZE = 4
 def main():
     device = torch.device(best_available_device())
 
-    model = batch_mnist_model()
+    model = make_mnist_model()
     model.load_state_dict(torch.load(OUT_PATH))
     model.to(device)
 

@@ -1,11 +1,11 @@
 import numpy as np
 import torch
 
-from model import batch_mnist_model
+from .model import make_mnist_model
 
 
-def test_batched_model():
-    m = batch_mnist_model()
+def test_batched_models():
+    m = make_mnist_model()
     m.to(torch.float64)
     inputs = torch.from_numpy(np.array([[1, 2], [3, 4], [5, 1]])).long()[:, None]
     batch_out = m.batch_forward(m.batch_parameters(3), inputs).detach().numpy()

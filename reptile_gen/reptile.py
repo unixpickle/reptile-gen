@@ -2,42 +2,28 @@ import torch
 import torch.nn.functional as F
 
 
-def reptile_grad(model, inputs, outputs, optimizer, inner_iters=1, batch=1):
-    parameters = list(model.parameters())
-    backup = [p.data.clone() for p in parameters]
-    backup_grads = [p.grad.clone() if p.grad is not None else None
-                    for p in parameters]
-    res = run_sgd_epoch(model, inputs, outputs, optimizer, inner_iters, batch)
-    for bg, b, p in zip(backup_grads, backup, parameters):
-        if bg is None:
-            bg = torch.zeros_like(b)
-        p.grad.copy_(bg + b - p.data)
-        p.data.copy_(b)
-    return res
+def reptile_grad(model, data_points, lr, loss_fn=None):
+    """
+    Compute the model's meta-gradient using Reptile.
 
+    Args:
+        model: a BatchModel to compute a gradient for.
+        data_points: a meta-batch of (inputs, outputs)
+          pairs, where each inputs and outputs is a
+          sequence to feed to the model step by step.
+          For example, if inputs is of shape [512, 256],
+          then the model is fed 512 Tensors of shape
+          [1, 256], one at a time.
+        lr: the inner-loop learning rate for Reptile.
 
-def run_sgd_epoch(model, inputs, outputs, optimizer, inner_iters, batch):
-    device = next(model.parameters()).device
-    losses = []
-    for i in range(0, inputs.shape[0], batch):
-        x = inputs[i:i+batch]
-        y = outputs[i:i+batch]
-        target = y.to(device)
-        for j in range(inner_iters):
-            out = model(x.to(device))
-            if target.dtype.is_floating_point:
-                loss = F.binary_cross_entropy_with_logits(out, target)
-            else:
-                loss = F.cross_entropy(out, target)
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-            if j == 0:
-                losses.append(loss.item())
-    return losses
+    Steps are taken using either cross entropy or binary
+    cross entropy depending on the dtype of the outputs.
 
-
-def batched_reptile_grad(model, data_points, lr):
+    Returns:
+        A list of losses, where there is one loss for
+          every step in the sequence. Each loss is an
+          average over the entire mini-batch.
+    """
     inputs = torch.stack([x for x, _ in data_points])
     outputs = torch.stack([y for _, y in data_points])
     res, final_parameters = batched_run_sgd_epoch(model, inputs, outputs, lr)
@@ -48,6 +34,13 @@ def batched_reptile_grad(model, data_points, lr):
         else:
             p.grad.add_(g)
     return res
+
+
+def inferred_loss(out, targets):
+    if targets.dtype.is_floating_point:
+        return F.binary_cross_entropy_with_logits(out, targets)
+    else:
+        return F.cross_entropy(out.view(-1, *out.shape[2:]), targets.view(-1, *targets.shape[2:]))
 
 
 def batched_run_sgd_epoch(model, inputs, outputs, lr):
@@ -62,10 +55,7 @@ def batched_run_sgd_epoch(model, inputs, outputs, lr):
         x = inputs[:, i:i+1].to(device)
         y = outputs[:, i:i+1].to(device)
         out = model.batch_forward(parameters, x)
-        if y.dtype.is_floating_point:
-            loss = F.binary_cross_entropy_with_logits(out, y)
-        else:
-            loss = F.cross_entropy(out.view(-1, out.shape[-1]), y.view(-1))
+        loss = inferred_loss(out, y)
         losses.append(loss.item())
         grads = torch.autograd.grad(loss, parameters)
         parameters = tuple((p - lr * g).detach().requires_grad_()

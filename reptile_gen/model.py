@@ -9,7 +9,67 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def make_text_model(max_len=128):
+    return BatchSequential(
+        BatchMultiEmbedding(
+            BatchEmbedding(max_len, 512),
+        ),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 512),
+        BatchFn(F.relu),
+        BatchLinear(512, 256),
+    )
+
+
+def make_mnist_model():
+    return BatchSequential(
+        BatchMultiEmbedding(
+            BatchEmbedding(28, 128),
+            BatchEmbedding(28, 128),
+        ),
+        BatchLinear(256, 1024),
+        BatchFn(gated_act),
+        BatchLayerNorm(512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
+        BatchLayerNorm(512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
+        BatchLayerNorm(512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
+        BatchLayerNorm(512),
+        BatchLinear(512, 1024),
+        BatchFn(gated_act),
+        BatchLinear(512, 1),
+    )
+
+
+def gated_act(x):
+    """
+    A gated activation function designed to allow a model
+    to "remember" certain pieces of information by
+    preventing that information from being used in the
+    forward pass.
+    """
+    d = x.shape[-1] // 2
+    return x[..., :d] * torch.sigmoid(x[..., d:])
+
+
 class MNISTBaseline(nn.Module):
+    """
+    A baseline RNN model for MNIST sequence generation.
+    """
+
     def __init__(self, layers=3, stop_grad=False):
         super().__init__()
         self.stop_grad = stop_grad
@@ -48,6 +108,9 @@ class BatchModule(ABC, nn.Module):
     """
     A model which can be applied with a batch of
     parameters to a batch of input batches.
+
+    These modules can take advantage of batch matrix
+    multiplies and other batched operations.
     """
 
     def __init__(self):
@@ -181,10 +244,6 @@ class BatchLinear(BatchModule):
         output = output + bias[:, None]
         return output
 
-def gated_act(x):
-    d = x.shape[-1] // 2
-    return x[..., :d] * torch.sigmoid(x[..., d:])
-
 
 class BatchResidual(BatchSequential):
     def forward(self, x):
@@ -192,48 +251,3 @@ class BatchResidual(BatchSequential):
 
     def batch_forward(self, parameters, xs):
         return super().batch_forward(parameters, xs) + xs
-
-
-def batch_text_model(max_len=128):
-    return BatchSequential(
-        BatchMultiEmbedding(
-            BatchEmbedding(max_len, 512),
-        ),
-        BatchLinear(512, 512),
-        BatchFn(F.relu),
-        BatchLinear(512, 512),
-        BatchFn(F.relu),
-        BatchLinear(512, 512),
-        BatchFn(F.relu),
-        BatchLinear(512, 512),
-        BatchFn(F.relu),
-        BatchLinear(512, 512),
-        BatchFn(F.relu),
-        BatchLinear(512, 512),
-        BatchFn(F.relu),
-        BatchLinear(512, 256),
-    )
-
-
-def batch_mnist_model():
-    return BatchSequential(
-        BatchMultiEmbedding(
-            BatchEmbedding(28, 128),
-            BatchEmbedding(28, 128),
-        ),
-        BatchLinear(256, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLinear(512, 1),
-    )

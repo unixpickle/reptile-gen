@@ -6,8 +6,8 @@ import torch
 import torch.optim as optim
 
 from reptile_gen.device import best_available_device
-from reptile_gen.model import batch_text_model
-from reptile_gen.reptile import batched_reptile_grad
+from reptile_gen.model import make_text_model
+from reptile_gen.reptile import reptile_grad
 from reptile_gen.text_data import iterate_mini_datasets
 
 OUT_PATH = 'text_model.pt'
@@ -19,7 +19,7 @@ INNER_LR = 1e-3
 
 def main():
     device = torch.device(best_available_device())
-    model = batch_text_model()
+    model = make_text_model()
     if os.path.exists(OUT_PATH):
         model.load_state_dict(torch.load(OUT_PATH))
     model.to(device)
@@ -30,7 +30,7 @@ def main():
     for i in itertools.count():
         batch = [next(mini_batches) for _ in range(META_BATCH)]
         outer_opt.zero_grad()
-        losses = batched_reptile_grad(model, batch, INNER_LR)
+        losses = reptile_grad(model, batch, INNER_LR)
         outer_opt.step()
         loss = np.mean(losses)
         last_n.append(loss)

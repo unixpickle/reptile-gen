@@ -1,21 +1,21 @@
 import numpy as np
 import pytest
 import torch
-import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 
-from maml import maml_grad
+from .maml import maml_grad
+from .model import BatchSequential, BatchFn, BatchLinear
 
 
 @pytest.mark.parametrize('checkpoint', [False, True])
 def test_maml_grad(checkpoint):
-    model = nn.Sequential(
-        nn.Linear(3, 4),
-        nn.Tanh(),
-        nn.Linear(4, 3),
-        nn.Tanh(),
-        nn.Linear(3, 1),
+    model = BatchSequential(
+        BatchLinear(3, 4),
+        BatchFn(torch.tanh),
+        BatchLinear(4, 3),
+        BatchFn(torch.tanh),
+        BatchLinear(3, 1),
     )
 
     # More precision for gradient checking.
@@ -40,7 +40,7 @@ def test_maml_grad(checkpoint):
 def _exact_maml_grad(model, inputs, outputs, lr, checkpoint):
     for p in model.parameters():
         p.grad = None
-    maml_grad(model, inputs, outputs, lr, checkpoint=checkpoint)
+    maml_grad(model, [(inputs, outputs)], lr, checkpoint=checkpoint)
     return [p.grad.numpy().copy() for p in model.parameters()]
 
 

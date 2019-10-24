@@ -1,84 +1,91 @@
 import math
 
 import torch
-import torch.nn.functional as F
+
+from .reptile import inferred_loss
 
 
-def maml_grad(model, inputs, outputs, lr, batch=1, checkpoint=False):
+def maml_grad(model, data_points, lr, checkpoint=True):
     """
-    Update the model gradient using MAML.
+    Compute the model's meta-gradient using MAML.
+
+    See reptile_grad for more details on usage.
+
+    Args:
+        model: a BatchModel to compute a gradient for.
+        data_points: a meta-batch of (inputs, outputs).
+        lr: the inner-loop learning rate.
+        checkpoint: if True, conserve memory at the cost
+          of a little extra compute.
+
+    Returns:
+        A list of losses, one per inner-loop step.
     """
-    params = list(model.parameters())
-    device = params[0].device
-    batches = list(_split_batches(inputs.to(device), outputs.to(device), batch))
-    if outputs.dtype.is_floating_point:
-        loss_fn = F.binary_cross_entropy_with_logits
-    else:
-        loss_fn = F.cross_entropy
+    batch_size = data_points[0][0].shape[0]
+
+    # Adjust for fact that we average over the
+    # whole meta-batch.
+    lr *= batch_size
+
+    device = next(model.parameters()).device
+    inputs = torch.stack([x for x, _ in data_points]).to(device)
+    outputs = torch.stack([y for _, y in data_points]).to(device)
+
+    init_params = model.batch_parameters(batch_size)
     if not checkpoint:
-        gradient, losses = _maml_grad(model, batches, lr, loss_fn,
-                                      [torch.zeros_like(p) for p in params])
+        gradient, losses = _maml_grad(model, init_params, inputs, outputs, lr,
+                                      [torch.zeros_like(p) for p in init_params])
     else:
-        gradient, losses = _checkpointed_maml_grad(model, batches, lr, loss_fn)
-    for p, g in zip(params, gradient):
+        gradient, losses = _checkpointed_maml_grad(model, init_params, inputs, outputs, lr)
+    for p, g in zip(model.parameters(), gradient):
+        avg_grad = torch.sum(g, dim=0)
         if p.grad is None:
-            p.grad = g
+            p.grad = avg_grad
         else:
-            p.grad.add_(g)
+            p.grad.add_(avg_grad)
     return losses
 
 
-def _split_batches(inputs, outputs, batch):
-    for i in range(0, inputs.shape[0], batch):
-        yield (inputs[i:i+batch], outputs[i:i+batch])
-
-
-def _checkpointed_maml_grad(model, batches, lr, loss_fn):
-    params = list(model.parameters())
-    interval = int(math.sqrt(len(batches)))
+def _checkpointed_maml_grad(model, parameters, inputs, outputs, lr):
+    num_steps = inputs.shape[1]
+    interval = int(math.sqrt(num_steps))
     checkpoints = []
-    scalar_losses = []
-    for i, (x, y) in enumerate(batches):
+    losses = []
+    params = parameters
+    for i in range(num_steps):
+        x = inputs[:, i:i+1]
+        y = outputs[:, i:i+1]
         if i % interval == 0:
-            checkpoints.append([p.clone().detach() for p in params])
-        out = model(x)
-        loss = loss_fn(out, y)
-        scalar_losses.append(loss.item())
+            checkpoints.append(tuple(p.clone().detach().requires_grad for p in params))
+        out = model.batch_forward(params, x)
+        loss = inferred_loss(out, y)
+        losses.append(loss.item())
         grads = torch.autograd.grad(loss, params)
-        for p, g in zip(params, grads):
-            p.data.add_(-lr * g)
+        params = tuple((p - lr * g).detach() for p, g in zip(params, grads))
     gradient = [torch.zeros_like(p) for p in params]
-    for i in list(range(0, len(batches), interval))[::-1]:
+    for i in list(range(0, num_steps, interval))[::-1]:
         checkpoint = checkpoints[i // interval]
-        for p, v in zip(params, checkpoint):
-            p.data.copy_(v)
-        gradient, _ = _maml_grad(model, batches[i:i+interval], lr, loss_fn, gradient)
-    return gradient, scalar_losses
+        gradient, _ = _maml_grad(model,
+                                 checkpoint,
+                                 inputs[:, i:i+interval],
+                                 outputs[:, i:i+interval],
+                                 lr,
+                                 gradient)
+    return gradient, losses
 
 
-def _maml_grad(model, batches, lr, loss_fn, grad_outputs):
-    params = list(model.parameters())
-    initial_values = []
-    final_values = []
-    loss_grads = []
-    scalar_losses = []
-    for x, y in batches:
-        out = model(x)
-        loss = loss_fn(out, y)
-        scalar_losses.append(loss.item())
-        initial_values.append([p.clone().detach() for p in params])
-        grads = torch.autograd.grad(loss, params, create_graph=True, retain_graph=True)
-        loss_grads.append([g.detach() for g in grads])
-        updated = []
-        for grad, param in zip(grads, params):
-            x = param - lr * grad
-            updated.append(x)
-            param.data.copy_(x)
-        final_values.append(updated)
-    gradient = grad_outputs
-    for loss_grad, initial, final in list(zip(loss_grads, initial_values, final_values))[::-1]:
-        for p, x in zip(params, initial):
-            p.data.copy_(x)
-        future_grad = torch.autograd.grad(final, params, grad_outputs=gradient, retain_graph=True)
-        gradient = [v1 + v2 for v1, v2 in zip(loss_grad, future_grad)]
-    return gradient, scalar_losses
+def _maml_grad(model, init_params, inputs, outputs, lr, grad_outputs):
+    losses = []
+    total_loss = 0
+    parameters = init_params
+    for i in range(inputs.shape[1]):
+        x = inputs[:, i:i+1]
+        y = outputs[:, i:i+1]
+        out = model.batch_forward(parameters, x)
+        loss = inferred_loss(out, y)
+        losses.append(loss.item())
+        grads = torch.autograd.grad(loss, parameters, create_graph=True, retain_graph=True)
+        parameters = tuple(p - lr * g for p, g in zip(parameters, grads))
+        total_loss = total_loss + loss
+    gradient = torch.autograd.grad(total_loss, init_params, grad_outputs=grad_outputs)
+    return gradient, losses
