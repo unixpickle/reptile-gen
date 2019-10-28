@@ -251,3 +251,19 @@ class BatchResidual(BatchSequential):
 
     def batch_forward(self, parameters, xs):
         return super().batch_forward(parameters, xs) + xs
+
+class BatchGatedResidual(BatchSequential):
+    def __init__(self, in_size, *layers):
+        super().__init__(*layers)
+        self.weights = BatchLinear(in_size, in_size)
+
+    def forward(self, x):
+        gates = self.weights(x)
+        outs = super().forward(x)
+        return gated_act(torch.cat([outs, gates], dim=-1))
+    
+    def batch_forward(self, parameters, xs):
+        gates = self.weights.batch_forward(parameters[-2:], xs)
+        outs = super().batch_forward(parameters[:-2], xs)
+        return gated_act(torch.cat([outs, gates], dim=-1))
+
