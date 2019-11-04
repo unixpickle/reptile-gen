@@ -36,20 +36,10 @@ def make_mnist_model():
             BatchEmbedding(28, 128),
             BatchEmbedding(28, 128),
         ),
-        BatchLinear(256, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
-        BatchLayerNorm(512),
-        BatchLinear(512, 1024),
-        BatchFn(gated_act),
+        BatchLinear(256, 512),
+        BatchLSTM(512),
+        BatchLSTM(512),
+        BatchLSTM(512),
         BatchLinear(512, 1),
     )
 
@@ -252,6 +242,7 @@ class BatchResidual(BatchSequential):
     def batch_forward(self, parameters, xs):
         return super().batch_forward(parameters, xs) + xs
 
+
 class BatchGatedResidual(BatchSequential):
     def __init__(self, in_size, *layers):
         super().__init__(*layers)
@@ -261,9 +252,38 @@ class BatchGatedResidual(BatchSequential):
         gates = self.weights(x)
         outs = super().forward(x)
         return gated_act(torch.cat([outs, gates], dim=-1))
-    
+
     def batch_forward(self, parameters, xs):
         gates = self.weights.batch_forward(parameters[-2:], xs)
         outs = super().batch_forward(parameters[:-2], xs)
         return gated_act(torch.cat([outs, gates], dim=-1))
 
+
+class BatchLSTM(BatchModule):
+    def __init__(self, dim):
+        super().__init__()
+        self.hidden_vec = nn.Parameter(torch.randn(dim))
+        self.forget_gate = BatchLinear(dim * 2, dim)
+        self.input_gate = BatchLinear(dim * 2, dim)
+        self.output_gate = BatchLinear(dim * 2, dim)
+        self.updater = BatchLinear(dim * 2, dim)
+
+    def forward(self, x):
+        hiddens = self.hidden_vec[None].repeat(x.shape[0], 1)
+        joined_in = torch.cat([hiddens, x], dim=-1)
+        forget = torch.sigmoid(self.forget_gate(joined_in))
+        inputs = torch.sigmoid(self.input_gate(joined_in))
+        outputs = torch.sigmoid(self.output_gate(joined_in))
+        updates = self.updater(joined_in)
+        new_hidden = inputs * torch.tanh(updates) + forget * hiddens
+        return outputs * new_hidden
+
+    def batch_forward(self, parameters, xs):
+        hiddens = parameters[0][:, None].repeat(1, xs.shape[1], 1)
+        joined_in = torch.cat([hiddens, xs], dim=-1)
+        forget = torch.sigmoid(self.forget_gate.batch_forward(parameters[1:3], joined_in))
+        inputs = torch.sigmoid(self.input_gate.batch_forward(parameters[3:5], joined_in))
+        outputs = torch.sigmoid(self.output_gate.batch_forward(parameters[5:7], joined_in))
+        updates = self.updater.batch_forward(parameters[7:9], joined_in)
+        new_hidden = inputs * torch.tanh(updates) + forget * hiddens
+        return outputs * new_hidden
