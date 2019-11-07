@@ -36,11 +36,13 @@ def make_mnist_model():
             BatchEmbedding(28, 128),
             BatchEmbedding(28, 128),
         ),
-        BatchLinear(256, 512),
-        BatchLSTM(512),
-        BatchLSTM(512),
-        BatchLSTM(512),
-        BatchLinear(512, 1),
+        BatchLinear(256, 256),
+        BatchLayerNorm(256),
+        BatchLSTM(256),
+        BatchLayerNorm(256),
+        BatchLSTM(256),
+        BatchLayerNorm(256),
+        BatchLinear(256, 1),
     )
 
 
