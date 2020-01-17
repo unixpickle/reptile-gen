@@ -19,7 +19,7 @@ def main():
     sequence = []
 
     for i in range(128):
-        inputs = torch.from_numpy(np.array([[i]])).to(device).gradlong()
+        inputs = torch.from_numpy(np.array([[i]])).to(device).long()
         logits = model(inputs)
         probs = F.softmax(logits[0], dim=0).detach().cpu().numpy()
         sample = np.random.choice(np.arange(256), p=probs)
