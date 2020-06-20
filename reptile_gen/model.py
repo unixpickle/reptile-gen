@@ -3,6 +3,7 @@ Various models for using Reptile as a sequence model.
 """
 
 from abc import ABC, abstractmethod
+import math
 
 import torch
 import torch.nn as nn
@@ -43,6 +44,16 @@ def make_mnist_model():
         BatchLSTM(256),
         BatchLayerNorm(256),
         BatchLinear(256, 1),
+    )
+
+
+def make_mnist_model_siren():
+    return BatchSequential(
+        BatchDiscreteToContinuous(28),
+        BatchSIREN(2, 256),
+        BatchSIREN(256, 256),
+        BatchSIREN(256, 256),
+        BatchSIREN(256, 1),
     )
 
 
@@ -222,6 +233,18 @@ class BatchMultiEmbedding(BatchModule):
         return torch.cat(outputs, dim=-1)
 
 
+class BatchDiscreteToContinuous(BatchModule):
+    def __init__(self, num_values):
+        super().__init__()
+        self.num_values = num_values
+
+    def forward(self, x):
+        return x.float() / (self.num_values / 2) - 1
+
+    def batch_forward(self, parameters, xs):
+        return xs.float() / (self.num_values / 2) - 1
+
+
 class BatchLinear(BatchModule):
     def __init__(self, num_inputs, num_outputs):
         super().__init__()
@@ -235,6 +258,31 @@ class BatchLinear(BatchModule):
         output = torch.bmm(xs, weight.permute(0, 2, 1))
         output = output + bias[:, None]
         return output
+
+
+class BatchSIREN(BatchModule):
+    """
+    A layer from a SIREN: https://arxiv.org/abs/2006.09661.
+    """
+
+    def __init__(self, num_inputs, num_outputs):
+        super().__init__()
+        self.linear = nn.Linear(num_inputs, num_outputs)
+
+        min_val = -math.sqrt(6 / num_inputs)
+        max_val = -min_val
+        init_weight = torch.rand_like(self.linear.weight) * (max_val - min_val) + min_val
+        self.linear.weight.detach().copy_(init_weight)
+        self.linear.bias.detach().zero_()
+
+    def forward(self, x):
+        return torch.sin(self.linear(x))
+
+    def batch_forward(self, parameters, xs):
+        weight, bias = parameters
+        output = torch.bmm(xs, weight.permute(0, 2, 1))
+        output = output + bias[:, None]
+        return torch.sin(output)
 
 
 class BatchResidual(BatchSequential):
