@@ -51,9 +51,10 @@ def make_mnist_model_siren():
     return BatchSequential(
         BatchDiscreteToContinuous(28),
         BatchSIREN(2, 256),
-        BatchSIREN(256, 256),
-        BatchSIREN(256, 256),
-        BatchSIREN(256, 1),
+        BatchSIREN(256, 512),
+        BatchSIREN(512, 512),
+        BatchSIREN(512, 256),
+        BatchLinear(256, 1),
     )
 
 
